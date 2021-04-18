@@ -8,10 +8,10 @@
 #include <SoftwareSerial.h>
 
 // Connect to A9(G) RX/TX (not HST nor GPS) pins
-#define A9Gtx 4
-#define A9Grx 5
+#define A9Gtx 6
+#define A9Grx 7
 SoftwareSerial SerialA9G(A9Gtx,A9Grx);
-A9Gdriver A9G(SerialA9G);
+// A9Gdriver A9G(SerialA9G);
 
 // Connect to A9(G) GPS pins
 #define GPStx 6
@@ -29,28 +29,64 @@ static void print_str(const char *str, int len);
 
 void setup(){
     Serial.begin(115200);   //Debug (hardware) serial
+    SerialA9G.begin(115200); // A9G Baud Rate
+    
+    delay(200);
 
     // A9G SETUP
-    SerialA9G.begin(115200); // A9G Baud Rate
-    while (!A9G.GPS_setStatus(1)) {
-        Serial.println(F("Error while turning on GPS. Retrying..."));
-        delay(2000);
+    Serial.println("INIT .... ");
+    while (!SerialA9G) 
+    {
+        delay(200);
+        Serial.println("WAIT..");
     }
 
+    SerialA9G.print(F("AT"));
+    SerialA9G.print(F("\r"));
+    SerialA9G.print(F("\n"));
+    String response = SerialA9G.readString();
+    Serial.print(response);
+    
+    // while (!) {
+    //     Serial.println(F("Error while turning on GPS. Retrying..."));
+    //     delay(2000);
+    // }
+
     // TinyGPS NMEA Decoder Setup
-    SerialGPS.listen();
-    Serial.print(F("Testing TinyGPS library v. ")); Serial.println(TinyGPS::library_version());
-    Serial.println(F("by Mikal Hart"));
-    Serial.println();
-    Serial.println(F("Sats HDOP Latitude  Longitude  Fix  Date       Time     Date Alt    Course Speed Card  Distance Course Card  Chars Sentences Checksum"));
-    Serial.println(F("          (deg)     (deg)      Age                      Age  (m)    --- from GPS ----  ---- to London  ----  RX    RX        Fail"));
-    Serial.println(F("-------------------------------------------------------------------------------------------------------------------------------------"));
-    SerialGPS.begin(9600);  // A9G's Internal GPS Baud Rate
+    // SerialGPS.listen();
+    // Serial.print(F("Testing TinyGPS library v. ")); Serial.println(TinyGPS::library_version());
+    // Serial.println(F("by Mikal Hart"));
+    // Serial.println();
+    // Serial.println(F("Sats HDOP Latitude  Longitude  Fix  Date       Time     Date Alt    Course Speed Card  Distance Course Card  Chars Sentences Checksum"));
+    // Serial.println(F("          (deg)     (deg)      Age                      Age  (m)    --- from GPS ----  ---- to London  ----  RX    RX        Fail"));
+    // Serial.println(F("-------------------------------------------------------------------------------------------------------------------------------------"));
+    // SerialGPS.begin(9600);  // A9G's Internal GPS Baud Rate
 }
 
 void loop(){
-    Serial.println(F("I am done "));
-     delay(2000);
+    delay(2000);
+    SerialA9G.print(F("AT"));
+    SerialA9G.print(F("AT+1"));
+    // while (Serial.available())
+    // {
+    //    String res = SerialA9G.readString();
+    //    Serial.print(res);
+    // }
+
+    // while (SerialA9G.available()) {
+    //     String command = Serial.readString();
+    //     SerialA9G.print(command);
+    // }
+  
+    
+    
+    // Serial.println(F("I am done "));
+    // delay(100);
+    // bool condition = A9G.GPS_setStatus(1);
+    // Serial.print(SerialA9G.readString());
+    // Serial.print(!condition);
+ 
+
     // float flat, flon;
     // unsigned long age, chars = 0;
     // unsigned short sentences = 0, failed = 0;
