@@ -1,192 +1,166 @@
-/*
- * GPS Example using A9G's GPS pins, based on TinyGPS "test_with_gps_device.ino" example
- */
-
+#include <SoftwareSerial.h> // Library for using serial communication
+SoftwareSerial A9G(7, 8); // Pins 7, 8 are used as used as software serial pins
 #include <Arduino.h>
-#include "a9gdriver.h"
-#include <TinyGPS.h>
-#include <SoftwareSerial.h>
 
-// Connect to A9(G) RX/TX (not HST nor GPS) pins
-#define A9Gtx 6
-#define A9Grx 7
-SoftwareSerial SerialA9G(A9Gtx,A9Grx);
-// A9Gdriver A9G(SerialA9G);
+String incomingData;   // for storing incoming serial data
 
-// Connect to A9(G) GPS pins
-#define GPStx 6
-#define GPSrx 7
-SoftwareSerial SerialGPS(GPStx,GPSrx);
-TinyGPS gps;
+static void receive_message();
+static void SendMessage();
+static void MakeCall();
+static void HangupCall();
+static void RedialCall();
+static void ReceiveCall();
+static void ReadLocation();
+static void sendATCommand(int command); 
 
-static void smartdelay(unsigned long ms);
-static void print_float(float val, float invalid, int len, int prec);
-static void print_int(unsigned long val, unsigned long invalid, int len);
-static void print_date(TinyGPS &gps);
-static void print_str(const char *str, int len);
-
-// MAIN LOGIC
-
-void setup(){
-    Serial.begin(115200);   //Debug (hardware) serial
-    SerialA9G.begin(115200); // A9G Baud Rate
-    
-    delay(200);
-
-    // A9G SETUP
-    Serial.println("INIT .... ");
-    while (!SerialA9G) 
-    {
-        delay(200);
-        Serial.println("WAIT..");
-    }
-
-    SerialA9G.print(F("AT"));
-    SerialA9G.print(F("\r"));
-    SerialA9G.print(F("\n"));
-    String response = SerialA9G.readString();
-    Serial.print(response);
-    
-    // while (!) {
-    //     Serial.println(F("Error while turning on GPS. Retrying..."));
-    //     delay(2000);
-    // }
-
-    // TinyGPS NMEA Decoder Setup
-    // SerialGPS.listen();
-    // Serial.print(F("Testing TinyGPS library v. ")); Serial.println(TinyGPS::library_version());
-    // Serial.println(F("by Mikal Hart"));
-    // Serial.println();
-    // Serial.println(F("Sats HDOP Latitude  Longitude  Fix  Date       Time     Date Alt    Course Speed Card  Distance Course Card  Chars Sentences Checksum"));
-    // Serial.println(F("          (deg)     (deg)      Age                      Age  (m)    --- from GPS ----  ---- to London  ----  RX    RX        Fail"));
-    // Serial.println(F("-------------------------------------------------------------------------------------------------------------------------------------"));
-    // SerialGPS.begin(9600);  // A9G's Internal GPS Baud Rate
-}
-
-void loop(){
-    delay(2000);
-    SerialA9G.print(F("AT"));
-    SerialA9G.print(F("AT+1"));
-    // while (Serial.available())
-    // {
-    //    String res = SerialA9G.readString();
-    //    Serial.print(res);
-    // }
-
-    // while (SerialA9G.available()) {
-    //     String command = Serial.readString();
-    //     SerialA9G.print(command);
-    // }
+char msg;
+char call;
+void setup()
+{
+  Serial.begin(115200); // baudrate for serial monitor
+  A9G.begin(115200); // baudrate for GSM shield
   
-    
-    
-    // Serial.println(F("I am done "));
-    // delay(100);
-    // bool condition = A9G.GPS_setStatus(1);
-    // Serial.print(SerialA9G.readString());
-    // Serial.print(!condition);
- 
 
-    // float flat, flon;
-    // unsigned long age, chars = 0;
-    // unsigned short sentences = 0, failed = 0;
-    // static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
+  Serial.println("GSM A9G BEGIN");
+  Serial.println("Enter character for control option:");
+  Serial.println("h : to disconnect a call");
+  Serial.println("i : to receive a call");
+  Serial.println("s : to send message");
+  Serial.println("c : to make a call");  
+  Serial.println("e : to redial");
+  Serial.println("l : to read location");
+  Serial.println();
+  delay(100);
 
-    // print_int(gps.satellites(), TinyGPS::GPS_INVALID_SATELLITES, 5);
-    // print_int(gps.hdop(), TinyGPS::GPS_INVALID_HDOP, 5);
-    // gps.f_get_position(&flat, &flon, &age);
-    // print_float(flat, TinyGPS::GPS_INVALID_F_ANGLE, 10, 6);
-    // print_float(flon, TinyGPS::GPS_INVALID_F_ANGLE, 11, 6);
-    // print_int(age, TinyGPS::GPS_INVALID_AGE, 5);
-    // print_date(gps);
-    // print_float(gps.f_altitude(), TinyGPS::GPS_INVALID_F_ALTITUDE, 7, 2);
-    // print_float(gps.f_course(), TinyGPS::GPS_INVALID_F_ANGLE, 7, 2);
-    // print_float(gps.f_speed_kmph(), TinyGPS::GPS_INVALID_F_SPEED, 6, 2);
-    // print_str(gps.f_course() == TinyGPS::GPS_INVALID_F_ANGLE ? "*** " : TinyGPS::cardinal(gps.f_course()), 6);
-    // print_int(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0xFFFFFFFF : (unsigned long)TinyGPS::distance_between(flat, flon, LONDON_LAT, LONDON_LON) / 1000, 0xFFFFFFFF, 9);
-    // print_float(flat == TinyGPS::GPS_INVALID_F_ANGLE ? TinyGPS::GPS_INVALID_F_ANGLE : TinyGPS::course_to(flat, flon, LONDON_LAT, LONDON_LON), TinyGPS::GPS_INVALID_F_ANGLE, 7, 2);
-    // print_str(flat == TinyGPS::GPS_INVALID_F_ANGLE ? "*** " : TinyGPS::cardinal(TinyGPS::course_to(flat, flon, LONDON_LAT, LONDON_LON)), 6);
-
-    // gps.stats(&chars, &sentences, &failed);
-    // print_int(chars, 0xFFFFFFFF, 6);
-    // print_int(sentences, 0xFFFFFFFF, 10);
-    // print_int(failed, 0xFFFFFFFF, 9);
-    // Serial.println();
-
-    // smartdelay(1000);
+  
+  /*A9G.println("AT+GPS=1");
+  delay(100);
+  A9G.println("AT+GPSRD=5");
+  delay(5000);*/
+  
+  // set SMS mode to text mode
+  A9G.print("AT+CMGF=1\r");  
+  delay(100);
+  
+  // set gsm module to tp show the output on serial out
+  A9G.print("AT+CNMI=2,2,0,0,0\r"); 
+  delay(100);
 }
 
-// UTILITARY FUNCTIONS
-
-static void smartdelay(unsigned long ms)
+void loop()
 {
-    unsigned long start = millis();
-    do
-    {
-        while (SerialGPS.available())
-            gps.encode(SerialGPS.read());
-    } while (millis() - start < ms);
+  receive_message();
+
+
+if (Serial.available()>0) 
+{
+   int command = Serial.read();
+   switch(command)
+  {
+    case 's':
+      SendMessage();
+      break;
+    case 'c':
+      MakeCall();
+      break;
+    case 'h':
+      HangupCall();
+      break;
+    case 'e':
+      RedialCall();
+      break;
+    case 'i':
+      ReceiveCall();
+      break;
+    case 'l':
+      ReadLocation();
+      break;
+    default: 
+      sendATCommand(command);
+  }
+       
+}
+  
 }
 
-static void print_float(float val, float invalid, int len, int prec)
+void sendATCommand(int command)
 {
-    if (val == invalid)
-    {
-        while (len-- > 1)
-            Serial.print('*');
-        Serial.print(' ');
-    }
-    else
-    {
-        Serial.print(val, prec);
-        int vi = abs((int)val);
-        int flen = prec + (val < 0.0 ? 2 : 1); // . and -
-        flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
-        for (int i=flen; i<len; ++i)
-            Serial.print(' ');
-    }
-    smartdelay(0);
+  A9G.println(command);
+  Serial.println(command + "Command Sent");
+  delay(1000);
 }
 
-static void print_int(unsigned long val, unsigned long invalid, int len)
+void receive_message()
 {
-    char sz[32];
-    if (val == invalid)
-        strcpy(sz, "*******");
-    else
-        sprintf(sz, "%ld", val);
-    sz[len] = 0;
-    for (int i=strlen(sz); i<len; ++i)
-        sz[i] = ' ';
-    if (len > 0)
-        sz[len-1] = ' ';
-    Serial.print(sz);
-    smartdelay(0);
+  // Serial.print("Trying to recive from Module !!");
+  // Serial.print("Module serial avaible buytes to read: " + A9G.available());
+  if (A9G.available() > 0)
+  {
+    incomingData = A9G.readString(); // Get the data from the serial port.
+    Serial.print(incomingData); 
+    delay(10); 
+  }
 }
 
-static void print_date(TinyGPS &gps)
+void SendMessage()
 {
-    int year;
-    byte month, day, hour, minute, second, hundredths;
-    unsigned long age;
-    gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &age);
-    if (age == TinyGPS::GPS_INVALID_AGE)
-        Serial.print("********** ******** ");
-    else
-    {
-        char sz[32];
-        sprintf(sz, "%02d/%02d/%02d %02d:%02d:%02d ",
-            month, day, year, hour, minute, second);
-        Serial.print(sz);
-    }
-    print_int(age, TinyGPS::GPS_INVALID_AGE, 5);
-    smartdelay(0);
+  A9G.println("AT+CMGF=1");  //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  A9G.println("AT+CMGS=\"+201118772996\"\r"); // Replace x with mobile number
+  delay(1000);
+  A9G.println("sim900a sms");// The SMS text you want to send
+  delay(100);
+   A9G.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
 }
 
-static void print_str(const char *str, int len)
+void ReceiveMessage()
 {
-    int slen = strlen(str);
-    for (int i=0; i<len; ++i)
-        Serial.print(i<slen ? str[i] : ' ');
-    smartdelay(0);
+  A9G.println("AT+CNMI=2,2,0,0,0"); // AT Command to recieve a live SMS
+  delay(1000);
+  if (A9G.available()>0)
+  {
+    msg=A9G.read();
+    Serial.print(msg);
+  }
 }
+
+void MakeCall()
+{
+  A9G.println("ATD+201118772996;"); // ATDxxxxxxxxxx; -- watch out here for semicolon at the end!!
+  Serial.println("Calling  "); // print response over serial port
+  delay(1000);
+}
+
+
+void HangupCall()
+{
+  A9G.println("ATH");
+  Serial.println("Hangup Call");
+  delay(1000);
+}
+
+void ReceiveCall()
+{
+  A9G.println("ATA");
+  delay(1000);
+  {
+    call=A9G.read();
+    Serial.print(call);
+  }
+}
+
+void RedialCall()
+{
+  A9G.println("ATDL");
+  Serial.println("Redialing");
+  delay(1000);
+}
+void ReadLocation(){
+
+  A9G.println("AT+GPS=1");
+  delay(1000);
+  A9G.println("AT+GPSRD=5");
+  delay(1000);
+  
+  }
